@@ -1,0 +1,383 @@
+---
+title: "D16129273PSICAPart2"
+Programme Code: DT228A DA
+date: "1/12/2018"
+output: html_document
+Student Name: Han Tang
+library_used: pastects, ggplot2, psych, semTools, car, dplyr, userfriendlyscience,
+  ppcor, olsrr, lmSupport, strargazer, dplyr
+Student Number: D16129273
+Option Chosen: Option A
+version of R: version 3.5.1 (2018-07-02)
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Library Import
+```{r}
+library(pastecs) #For creating descriptive statistic summaries
+library(ggplot2) #For creating histograms with more detail than plot
+library(psych) # Some useful descriptive functions
+library(semTools) #For skewness and kurtosis
+library(car)
+library(userfriendlyscience)
+library(ppcor)
+library(olsrr)
+library(lmSupport)#Extra functions for linear model (may require install of nloptr also)
+library(stargazer)#pretty print regression output
+library(dplyr)
+library(reshape2)
+library(fastDummies)
+library(knitr)
+```
+
+
+#Dataset Import
+```{r}
+sleep <- read.csv('sleep5ED.csv')
+#View(sleep)
+nrow(sleep)
+ncol(sleep)
+#Variables of interest
+sleep$depress # Dependent varaible
+
+#Hypothesis 1
+sleep$anxiety
+sleep$getsleprec
+
+#Hypothesis 2
+sleep$smoke
+sleep$healthrate
+
+#Hypothesis 3
+sleep$edlevel
+sleep$sex
+
+#Create a new dataset with variables of interest
+sleepdata <- subset(sleep, select = c(depress, anxiety, getsleprec, edlevel, smoke, healthrate, sex))
+
+```
+
+#Handle missing data
+```{r}
+# Remove all records with missing data
+sleepdata <- na.omit(sleepdata)
+#View(sleepdata)
+nrow(sleepdata)
+colnames(sleepdata)
+```
+
+#Inspect variables of interest
+
+```{r}
+round(mean(sleepdata$depress),2)
+round(sd(sleepdata$depress), 2)
+
+round(mean(sleepdata$anxiety),2)
+round(sd(sleepdata$anxiety),2)
+
+sum(sleepdata$getsleprec == 1)
+sum(sleepdata$getsleprec == 0)
+
+sleepdata$smoke <- as.factor(sleepdata$smoke)
+levels(sleepdata$smoke)
+levels(sleepdata$smoke)[2] <- "0"
+levels(sleepdata$smoke)[1] <- "1"
+sum(sleepdata$smoke == 1)
+sum(sleepdata$smoke == 0)
+
+median(sleepdata$healthrate)
+mean(sleepdata$healthrate)
+
+#sleepdata$edlevel
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+Mode(sleepdata$edlevel)
+sum(sleepdata$edlevel == 5)
+sum(sleepdata$edlevel == 4)
+
+sum(sleepdata$sex == 0)
+sum(sleepdata$sex == 1)
+
+```
+
+#Normality of numeric variables
+
+```{r}
+#Total HADS Deression Score
+sleepdata$depress <-  scale(sleepdata$depress)
+
+#Descriptive statisics
+pastecs::stat.desc(sleepdata$depress, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+deskew<-semTools::skew(sleepdata$depress)
+dekurt<-semTools::kurtosis(sleepdata$depress)
+#We divide the skew statistic by the standard error to get the standardised score
+deskew[1]/deskew[2] 
+dekurt[1]/dekurt[2]
+dekurt
+deskew
+#sleepdata$depress
+
+summary(sleepdata$depress)
+
+#Descriptive statisics
+sleepdata$anxiety <- scale(sleepdata$anxiety)
+pastecs::stat.desc(sleepdata$anxiety, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+anskew<-semTools::skew(sleepdata$anxiety)
+ankurt<-semTools::kurtosis(sleepdata$anxiety)
+#We divide the skew statistic by the standard error to get the standardised score
+anskew[1]/anskew[2]
+ankurt[1]/ankurt[2]
+ankurt
+anskew
+
+summary(sleepdata$anxiety)
+
+#Health rate
+sleepdata$healthrate <- sleepdata$healthrate / 5 #narrow the range of this ordinal variable
+
+sleepdata$healthrate <- scale(sleepdata$healthrate)
+sleepdata$healthrate
+
+#Descriptive statisics
+pastecs::stat.desc(sleepdata$healthrate, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+heskew<-semTools::skew(sleepdata$healthrate)
+hekurt<-semTools::kurtosis(sleepdata$healthrate)
+#We divide the skew statistic by the standard error to get the standardised score
+heskew[1]/heskew[2] 
+hekurt[1]/hekurt[2]
+hekurt
+heskew
+#sleepdata$depress
+
+summary(sleepdata$healthrate)
+
+
+table1 <- data.frame(value = c('skew', 'kurtosis'), anxiety = c(round(anskew[1],2),round(ankurt[1],2)), depress = c(round(deskew[1],2),round(dekurt[1],2)), healthrate = c(round(heskew[1],2), round(hekurt[1],2)))
+table1
+
+write.table(table1, "table1.txt", sep = '\t')
+```
+
+#Correlation between depression and anxiety
+
+```{r}
+cor.test(sleepdata$depress, sleepdata$healthrate)
+cor.test(sleepdata$anxiety, sleepdata$healthrate)
+cor.test(sleepdata$depress, sleepdata$anxiety)
+
+table2_ <- data.frame(value = c('anxiety', 'healthrate'), df = c(258, 258), r = c(0.59, -0.31), p_value = c('<.001', '<.001'))
+table2_
+write.table(table2_, "table2.txt", sep = '\t')
+table3 <- data.frame(df = c(258), r = c(-0.29), p_value = c('<.001'))
+write.table(table3, "table3.txt", sep = '\t')
+```
+
+#Differences between depression and other nominal variables
+
+```{r}
+#getsleprec and depress
+sleepdata$getsleprec <- as.factor(sleepdata$getsleprec)
+sleepdata$depress <- as.numeric(sleepdata$depress)
+sleepdata$anxiety <- as.numeric(sleepdata$anxiety)
+sleepdata$healthrate <- as.numeric(sleepdata$healthrate)
+levels(sleepdata$getsleprec)[1] <- "no"
+levels(sleepdata$getsleprec)[2] <- 'yes'
+sleepdata$getsleprec
+#Conduct Levene's test for homogeneity of variance in library car
+leveneTest(sleepdata$depress ~ sleepdata$getsleprec, data=sleepdata)
+
+#Conduct the t-test
+t.test(depress~getsleprec,var.equal=FALSE,data=sleepdata) #*
+#---------
+
+#Conduct Levene's test for homogeneity of variance in library car
+leveneTest(sleepdata$anxiety ~ sleepdata$getsleprec, data=sleepdata)
+
+#Conduct the t-test
+t.test(anxiety~getsleprec,var.equal=FALSE,data=sleepdata) #*
+
+#----------
+
+#Conduct Levene's test for homogeneity of variance in library car
+leveneTest(sleepdata$healthrate ~ sleepdata$getsleprec, data=sleepdata)
+
+#Conduct the t-test
+#t.test(healthrate~getsleprec,var.equal=FALSE,data=sleepdata)
+#----------
+#smoke and depress
+leveneTest(sleepdata$depress ~ smoke, data=sleepdata)
+
+#Conduct the t-test
+#t.test(depress~smoke,var.equal=FALSE,data=sleepdata)
+sleepdata$sex
+sleepdata$sex <- as.factor(sleepdata$sex)
+levels(sleepdata$sex)[1]
+levels(sleepdata$sex)[2]
+leveneTest(sleepdata$depress ~ sleepdata$sex, data=sleepdata)
+
+#Conduct the t-test
+#t.test(depress~getsleprec,var.equal=FALSE,data=sleepdata)
+
+#run a one-way anova test using the correct post-hoc test Tukey in our case
+#Use Games-Howell for unequal variances
+sleepdata$edlevel <- as.factor(sleepdata$edlevel)
+
+#Mean and SD of Group 3
+mean(sleep[sleep$edlevel == 3,]$depress,na.rm = T)
+sd(sleep[sleep$edlevel == 3,]$depress, na.rm = T)
+
+#Mean and SD of Group 5
+mean(sleep[sleep$edlevel == 5,]$depress,na.rm = T)
+sd(sleep[sleep$edlevel == 5,]$depress, na.rm = T)
+
+#Mean and SD of Group 2
+mean(sleep[sleep$edlevel == 2,]$depress,na.rm = T)
+sd(sleep[sleep$edlevel == 2,]$depress, na.rm = T)
+
+one.way <- oneway(sleepdata$edlevel, y = sleepdata$depress, posthoc = 'Tukey') 
+#printout a summary of the anova 
+one.way 
+#Difference only exists between 5 and 3
+
+one.way <- oneway(sleepdata$edlevel, y = sleepdata$anxiety, posthoc = 'Tukey') 
+#printout a summary of the anova 
+one.way 
+#Difference only exists between 5 and 3
+
+one.way <- oneway(sleepdata$edlevel, y = sleepdata$healthrate, posthoc = 'Tukey') 
+#printout a summary of the anova 
+one.way 
+#Difference only exists between 5 and 2
+
+```
+
+#Export Result to a table
+```{r}
+table4 <- data.frame(value = c('getsleprec'), depress = c('p-value = 0.019'), anxiety = c('p-value < .001'))
+write.table(table4, "table4.txt", sep = '\t')
+```
+
+#Build the multilinear regression model
+```{r}
+#Baseline model optimism and social desirability as predictors
+model1=lm(sleepdata$depress~sleepdata$anxiety + sleepdata$healthrate)
+anova(model1)
+stargazer(model1, type="text")
+
+
+#Check assumptions
+#Cooks distance
+cooks.distance(model1)
+max(cooks.distance(model1))
+#Plot Cooks distance
+plot(cooks.distance(model1), ylab="Cook's statistic")
+
+resid(model1)# List of residuals
+#Create histogram
+#A density plot of the residuals
+plot(density(resid(model1))) 
+
+
+qqPlot(model1, main = "QQ plot") # QQplot for studentized resid
+
+leveragePlots(model1) # leverage plots
+#Collinearity
+vifmodel<-vif(model1)
+vifmodel
+#Calculate tolerance
+1/vifmodel
+```
+
+#Build the second model
+```{r}
+#Adding getsleprec
+
+levels(sleepdata$getsleprec)[1] <- 0
+levels(sleepdata$getsleprec)[2] <- 1
+levels(sleepdata$getsleprec)
+
+sleepdata$troublegetasleep <- car::recode(sleepdata$getsleprec, '0=1;1=2')
+sleepdata$troublegetasleep
+sleepdata$intgetanx <- as.numeric(sleepdata$getsleprec) * sleepdata$anxiety
+
+#------------------------------------------------------------------------------------------
+
+model2=lm(sleepdata$depress~sleepdata$anxiety + sleepdata$healthrate + sleepdata$getsleprec)
+
+anova(model2)
+summary(model2)
+stargazer(model2, type="text") #Tidy output of all the required stats
+stargazer(model1, model2, type="text") #Quick model comparison
+
+
+#Check assumptions
+#Cooks distance
+cooks.distance(model2)
+plot(cooks.distance(model1), ylab = "Cook's Statistic")
+
+#Create histogram
+ 
+#A density plot of the residuals
+plot(density(resid(model2))) 
+
+leveragePlots(model2) # leverage plots
+#Collinearity
+vif(model2)
+1/vif(model2)
+sqrt(vif(model2)) 
+durbinWatsonTest(model2)
+```
+
+#Build the third model
+```{r}
+#Change edlevel to dummy variable
+
+#merge(sleepdata$depress, sleepdata$anxiety, sleepdata$healthrate, sleepdata$edlevel)
+results <- fastDummies::dummy_cols(sleepdata, select_columns = "edlevel")
+knitr::kable(results)
+View(sleepdata)
+sleepdata <- results
+
+# model4=lm(sleepdata$depress~sleepdata$anxiety + sleepdata$healthrate + sleepdata$getsleprec + sleepdata$intgetanx + sleepdata$edlevel_5 + sleepdata$edlevel_4 + sleepdata$edlevel_3 + sleepdata$edlevel_2 + sleepdata$edlevel_1)
+# stargazer(model4, type = 'text')
+
+
+model3=lm(sleepdata$depress~sleepdata$anxiety + sleepdata$healthrate + sleepdata$edlevel_5 + sleepdata$edlevel_4 + sleepdata$edlevel_3 + sleepdata$edlevel_2 + sleepdata$edlevel_1)
+anova(model3)
+summary(model3)
+stargazer(model3, type="text") #Tidy output of all the required stats
+stargazer(model1, model3, type="text") #Quick model comparison
+
+#Check assumptions
+#Cooks distance
+cooks.distance(model3)
+max(cooks.distance(model3))
+plot(cooks.distance(model3), ylab = "Cook's Statistic")
+
+#Create histogram
+ 
+#A density plot of the residuals
+plot(density(resid(model2))) 
+
+qqPlot(model3, main = "QQ plot")
+leveragePlots(model2) # leverage plots
+#Collinearity
+vif(model3)
+1/vif(model3)
+sqrt(vif(model3)) 
+```
+

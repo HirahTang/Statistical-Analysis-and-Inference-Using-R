@@ -1,0 +1,463 @@
+---
+title: "PSI CA Part I"
+R Packages: pastecs, pander, ggplot2, dplyr, semTools, psych, car, userfriendlyscience
+R Version: R version 3.5.1 (2018-07-02)
+output:
+  html_document: default
+  pdf_document: default
+Student Number: D16129273
+Student Name: Han Tang
+Programme Code: DT228A DA
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. INTRODUCTION
+
+This file uses the dataset sleep5ED.csv, which is about the quality of sleep for people of different gender, age, and living habits. This analysis looks at the factors which can infect the quality of sleep and the level of sleepiness.
+
+#1.1 Research Question
+
+A person's level of sleepiness can be impacted by many factors including the amounts of sleep they get and their physical condition etc. This analysis is concerned with quality of sleep, the level of anxiety and depression, and whether a person's gender and age group may also influence the level of sleepiness as measured using a questionnare of level of sleepiness.
+Can people's quality of sleep, measured using a qurstionnare, influence the level of sleepiness of people, and can the level of anxiety and depression, separately measured by Total HADS Anxiety Score and Total HADS Depression Score, influence the level of sleepiness of people? Do differences exists in the level of sleepiness based on their gender and age group?
+
+
+##1.2 Hypotheses
+
+The particular hypotheses to be investigated are:
+
+####Hypothesis 1:
+
+H0: There is no correlation between a respondent's quality of sleep and their level of sleepiness.
+
+HA: There is a correlation between a respondent's quality of sleep and their level of sleepiness.
+
+####Hypothesis 2:
+
+H0: There is no correlation between a respondent's level of anxiety and their level of sleepiness.
+
+H1: There is no correlation between a respondent's level of anxiety and their level of sleepiness.
+
+####Hypothesis 3:
+
+H0: There is no correlation between a respondent's level of depression and their level of sleepiness.
+
+H1: There is no correlation between a respondent's level of depression and their level of sleepiness.
+
+####Hypothesis 4:
+
+H0:There is no difference in Total Sleepiness and associated sensation scale score for respondents of different gender.
+
+HA:There is a difference in Total Sleepiness and associated sensation scale score for respondents of different gender.
+
+####Hypothesis 5:
+
+H0:There is no difference in Total Sleepiness and associated sensation scale score for respondents of different age groups.
+
+HA:There is a difference in Total Sleepiness and associated sensation scale score for respondents of different age groups.
+
+```{r}
+library(pastecs)#Some useful descriptive functions
+library(pander)# For creating a table
+library(ggplot2) #For creating histograms with more detail than plot
+library(dplyr)
+library(semTools)
+library(psych)
+library(car)
+library(userfriendlyscience)
+
+#Read in the dataset
+sleep <- read.csv('sleep5ED.csv')
+names(sleep)
+
+```
+
+
+#2. Methodology
+
+##2.1 Variable of interest
+The variables of interest used in this research 
+```{r}
+panderOptions('table.split.table', Inf)
+
+my.data <- " 
+  Concept                       | Variable Name     | Statistical Type        | Possible Values
+  Level of Sleepiness                | totsas           | Scale                   | Range from 5 to 50
+  Rate quality of sleep    | qualslprec          | Nominal                   | 1= very poor, 2= fair, 3= good, 4= very good, excellent
+  HADS Anxiety                  | anxiety           | Scale                  | Range from 0 to 21
+  HADS Depression               | depress           | Scale                   | Range from 0 to 21
+  Gender                        | gender               | Nominal                 | 0= female; 1= male
+  Age Group                     | agegp3            | Nominal                 | 1= <=37yrs, 2= 38-50yrs, 3= 51+yrs "
+sleep_df <- read.delim(textConnection(my.data),header=FALSE,sep="|",strip.white=TRUE,stringsAsFactors=FALSE)
+
+names(sleep_df) <- unname(as.list(sleep_df[1,])) # put headers on
+sleep_df <- sleep_df[-1,] # remove first row
+row.names(sleep_df)<-NULL
+pander(df, style = 'rmarkdown')
+sleep_df
+
+
+```
+
+
+Each of the variables of interest were inspected. The scale variables of interest, those representing total HADS Anxiety score, total HADS Depression score and total sleepiness and associated sensation scale score, were inpected for normality by creating its histogram and QQ plots. Their standardised scores were inspected for skewness and kurtosis so the outliers, which fell outside of expected bounderies were also considered. Decisions on skewness and kurtosis were guided by the advice of George and Mallory(2011) which categorizes a distribution as normal if the relevant standardised scores for skewness and kurtosis fall in the range +/- 2 and the advice of Field, Miles and Field (2012) which categorizes a distribution as normal if 95% of the standardised scores for the variable fall within the bounds of +/-3.29 for a dataset larger than 80 cases.
+
+## 2.2 Total level of Sleepiness
+
+###Code for inspecting the variable
+```{r desc totsas}
+#Descriptive statisics
+pastecs::stat.desc(sleep$totsas, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+stskew<-semTools::skew(sleep$totsas)
+stkurt<-semTools::kurtosis(sleep$totsas)
+#We divide the skew statistic by the standard error to get the standardised score
+stskew[1]/stskew[2]
+stkurt[1]/stkurt[2]
+stkurt
+stskew
+
+#Use dplyr filter to filter out the rows with a standardised value outsude the range
+outliers <- sleep %>% 
+  filter(scale(sleep$totsas) >3.29 | scale(sleep$totsas) < -3.29)
+outliers
+#count them using dplyr summarize
+num_outliers<-outliers %>%
+summarize(count=n())
+full_count<-sleep %>%
+summarize(count=n())
+
+num_outliers
+full_count
+
+mean = mean(sleep$totsas, na.rm = T)
+sd = sd(sleep$totsas, na.rm = T)
+mean
+sd
+```
+
+### Report of normality analysis
+
+Total Sleepiness and associated sensation scale score is represented by a scale variable in the dataset which was calculated from the sleepiness questionnaire. Inspection of the histogram and normality plot (see figure 1 and figure 2) shows that the distribution does not conform exactly to a normal distribution. Inspection of standardized normal scores for skewness and kurtosis indicated that while both fall with an acceptable range of +/-2, (skewness of `r stskew[1]` SE=`r stskew[2]`, kurtosis of `r stkurt[1]` SE=`r stkurt[2]`. Total Sleepiness and associated sensation scale score will be treated as a normal within this analysis (m=`r mean(sleep$totsas, na.rm=TRUE)`, sd=`r sd(sleep$totsas, na.rm=TRUE)`, n=`r tally(sleep, totsas)-sum(is.na(sleep$totsas))`).  
+
+
+
+```{r}
+#We will allocate the histogram to a variable to allow use to manipulate it
+gg <- ggplot(sleep, aes(x=sleep$totsas))
+
+#Change the label of the x axis
+gg <- gg + labs(x="Level of Sleepiness")
+#manage binwidth and colours
+gg <- gg + geom_histogram(binwidth=2, colour="black", aes(y=..density.., fill=..count..))
+gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+#adding a normal curve
+#use stat_function to compute a normalised score for each value of totsas
+#pass the mean and standard deviation
+#use the na.rm parameter to say how missing values are handled
+gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(sleep$totsas, na.rm=TRUE), sd=sd(sleep$totsas, na.rm=TRUE)))
+#to display the graph request the contents of the variable be shown
+gg
+summary(scale(sleep$totsas))
+#Create a qqplot
+qqnorm(sleep$totsas, main="Figure 2: QQPlot for Level of sleepiness")
+qqline(sleep$totsas, col=2) #show a line on theplot
+```
+
+## 2.3 Total HADS Anxiety Score
+
+### Code for inspecting the variable
+```{r}
+#Descriptive statisics
+pastecs::stat.desc(sleep$anxiety, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+anskew<-semTools::skew(sleep$anxiety)
+ankurt<-semTools::kurtosis(sleep$anxiety)
+#We divide the skew statistic by the standard error to get the standardised score
+anskew[1]/anskew[2]
+ankurt[1]/ankurt[2]
+ankurt
+anskew
+#Use dplyr filter to filter out the rows with a standardised value outsude the range
+outliers <- sleep %>% 
+  filter(scale(sleep$anxiety) >3.29 | scale(sleep$anxiety) < -3.29)
+outliers
+#count them using dplyr summarize
+numoutliers<-outliers %>%
+summarize(count=n())
+fullcount<-sleep %>%
+summarize(count=n())
+
+numoutliers
+fullcount
+
+```
+
+###Report of normality analysis
+
+Total HADS Anxiety score is represented by a scale variable in the dataset which was calculated from the sleepiness questionnaire. Inspection of the histogram and normality plot (see figure 3 and figure 4) shows that the distribution does not conform exactly to a normal distribution. Inspection of standardized normal scores for skewness and kurtosis indicated that while both fall with an acceptable range of +/-2, (skewness of `r anskew[1]` SE=`r anskew[2]`, kurtosis of `r ankurt[1]` SE=`r ankurt[2]`. Total HADS Anxiety score will be treated as a normal within this analysis (m=`r mean(sleep$anxiety, na.rm=TRUE)`, sd=`r sd(sleep$anxiety, na.rm=TRUE)`, n=`r tally(sleep, anxiety)-sum(is.na(sleep$anxiety))`).  
+
+
+```{r}
+#We will allocate the histogram to a variable to allow use to manipulate it
+gg <- ggplot(sleep, aes(x=sleep$anxiety))
+
+#Change the label of the x axis
+gg <- gg + labs(x="Total HADS Anxiety Score")
+#manage binwidth and colours
+gg <- gg + geom_histogram(binwidth=1, colour="black", aes(y=..density.., fill=..count..))
+gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+#adding a normal curve
+#use stat_function to compute a normalised score for each value of anxiety
+#pass the mean and standard deviation
+#use the na.rm parameter to say how missing values are handled
+gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(sleep$anxiety, na.rm=TRUE), sd=sd(sleep$anxiety, na.rm=TRUE)))
+#to display the graph request the contents of the variable be shown
+gg
+summary(scale(sleep$anxiety))
+#Create a qqplot
+qqnorm(sleep$anxiety, main="Figure 4: QQPlot for Total HADS Anxiety Score")
+qqline(sleep$anxiety, col=2) #show a line on theplot
+```
+
+## 2.4 Total HADS Depression Score
+
+###Code for inspecting the variable
+```{r}
+#Descriptive statisics
+pastecs::stat.desc(sleep$depress, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+deskew<-semTools::skew(sleep$depress)
+dekurt<-semTools::kurtosis(sleep$depress)
+#We divide the skew statistic by the standard error to get the standardised score
+deskew[1]/deskew[2] 
+dekurt[1]/dekurt[2]
+dekurt
+deskew
+
+summary(sleep$depress)
+#Use dplyr filter to filter out the rows with a standardised value outsude the range
+outliers <- sleep %>% 
+  filter(scale(sleep$depress) >3.29 | scale(sleep$depress) < -3.29)
+
+#count them using dplyr summarize
+numoutliers<-outliers %>%
+summarize(count=n())
+fullcount<-sleep %>%
+summarize(count=n())
+
+```
+
+###Report of normality analysis
+
+Total HADS Depression score is represented by a scale variable in the dataset which was calculated from the sleepiness questionnaire. Inspection of the histogram and normality plot (see figure 5 and figure 6) shows that the distribution does not conform exactly to a normal distribution. Inspection of standardized normal scores for skewness and kurtosis indicated that while both fall with an acceptable range of +/-2, (skewness of `r deskew[1]` SE=`r deskew[2]`, kurtosis of `r dekurt[1]` SE=`r dekurt[2]`. Total HADS Depression score will be treated as a normal within this analysis (m=`r mean(sleep$depress, na.rm=TRUE)`, sd=`r sd(sleep$depress, na.rm=TRUE)`, n=`r tally(sleep, depress)-sum(is.na(sleep$depress))`). 
+Describe how the dataset. Cover issues relevant to its representativeness and other issues that impact the statistical analysis.
+
+```{r}
+#We will allocate the histogram to a variable to allow use to manipulate it
+gg <- ggplot(sleep, aes(x=sleep$depress))
+
+#Change the label of the x axis
+gg <- gg + labs(x="Total HADS Depression score")
+#manage binwidth and colours
+gg <- gg + geom_histogram(binwidth=1, colour="black", aes(y=..density.., fill=..count..))
+gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+#adding a normal curve
+#use stat_function to compute a normalised score for each value of depress
+#pass the mean and standard deviation
+#use the na.rm parameter to say how missing values are handled
+gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(sleep$depress, na.rm=TRUE), sd=sd(sleep$depress, na.rm=TRUE)))
+#to display the graph request the contents of the variable be shown
+gg
+summary(scale(sleep$depress))
+#Create a qqplot
+qqnorm(sleep$depress, main="Figure 6: QQPlot for Total HADS Depression Score")
+qqline(sleep$depress, col=2) #show a line on theplot
+```
+
+## 2.5 Rate Quality of Sleep
+
+Rate Quality of Sleep is represented by a categorical variable in the dataset. The dataset contains data of 36 respondents with very poor quality of sleep, 75 respondents with fair quality of sleep, 90 respondents with good quality of sleep, 67 respondents with excellent quality of sleep.
+
+```{r}
+table(sleep$qualsleeprec)
+#Get descriptive stastitics by group
+psych::describeBy(sleep$totsas, sleep$qualsleeprec)
+```
+
+```{r}
+bar <- ggplot(sleep, aes(sleep$qualsleeprec, sleep$totsas))
+bar + stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "Quality of Sleep", y = "Mean Total Sleepiness and associated sensation scale score", title="Figure 7: Mean Total Sleepiness and associated sensation scale score by Quality of Sleep") 
+```
+
+## 2.6 GENDER
+
+Gender is represented by a categorical variable in the dataset. The dataset contains data from 150 female respondents and 121 male respondents. (In Australian census 2016 population was 51% female, 49% male.)
+
+```{r}
+table(sleep$sex)
+#Get descriptive stastitics by group
+psych::describeBy(sleep$totsas, sleep$sex)
+```
+
+```{r}
+bar <- ggplot(sleep, aes(sleep$sex, sleep$totsas))
+bar + stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "Gender", y = "Mean Total Sleepiness and associated sensation scale score", title="Figure 8: Mean Total Sleepiness and associated sensation scale score by Gender") 
+```
+
+## 2.8 AGE GROUP
+
+Age group is represented by a categorical variable in the dataset. The dataset contains data from 83 respondents age under 37 yrs, 86 respondents age from 38 to 50yrs, and 79 respondents age more than 51yrs.
+
+```{r}
+table(sleep$agegp3)
+#Get descriptive stastitics by group
+psych::describeBy(sleep$totsas, sleep$agegp3)
+```
+
+```{r}
+bar <- ggplot(sleep, aes(sleep$agegp3, sleep$totsas))
+bar + stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "AGE GROUP", y = "Mean Total Sleepiness and associated sensation scale score", title="Figure 9: Mean Total Sleepiness and associated sensation scale score by Age Group") 
+```
+
+
+#3. Results
+
+An alpha level 0.05 was adopted and Cohen's conventions on effect size were adopted for all statistical tests.
+
+##3.1 Hypothesis 1
+H0: There is no correlation between a respondent's quality of sleep and their level of sleepiness.
+
+HA: There is a correlation between a respondent's quality of sleep and their level of sleepiness.
+
+```{r}
+
+cor.test(sleep$totsas, sleep$qualsleeprec, method = "spearman")
+
+```
+ 
+The relationship between Total Sleepiness and Associated Sensation Scale (derived from the sleepiness questionnaire) and Rate Quality of Sleep was investigated using a Spearman correlation. A medium negative correlation was found (rho = -.477, p<.001).  There is evidence to support rejecting the null hypothesis that there is no relationship between Total Sleepiness and Associated Sensation Scale and Rate Quality of Sleep.
+
+##3.2 Hypothesis 2:
+
+H0: There is no correlation between a respondent's level of anxiety and their level of sleepiness.
+
+H1: There is no correlation between a respondent's level of anxiety and their level of sleepiness.
+
+```{r}
+#Simple scatterplot of feeling of control and perceived stress
+#aes(x,y)
+scatter <- ggplot(sleep, aes(sleep$totsas, sleep$anxiety))
+scatter + geom_point() + labs(x = "Total Sleepiness and Associated Sensation Scale Score", y = "Total HADS Anxiety Score") 
+
+#Add a regression line
+scatter + geom_point() + geom_smooth(method = "lm", colour = "Red", se = F) + labs(x = "Total Sleepiness and Associated Sensation Scale Score", y = "Total HADS Anxiety Scor") 
+
+#Pearson Correlation
+stats::cor.test(sleep$totsas, sleep$anxiety,  method='pearson')
+
+
+```
+
+The relationship between Total Sleepiness and Associated Sensation Scale (derived from the sleepiness questionnaire) and Total HADS Anxiety Score was investigated using a Pearson correlation. A strong positive correlation was found (r =.508, n=247, p<.001).  There is evidence to support rejecting the null hypothesis that there is no relationship between Total Sleepiness and Associated Sensation Scale and Total HADS Anxiety Score.
+
+##3.3 Hypothesis 3:
+
+H0: There is no correlation between a respondent's level of depression and their level of sleepiness.
+
+H1: There is no correlation between a respondent's level of depression and their level of sleepiness.
+
+```{r}
+#Simple scatterplot of feeling of control and perceived stress
+#aes(x,y)
+scatter <- ggplot(sleep, aes(sleep$totsas, sleep$depress))
+scatter + geom_point() + labs(x = "Total Sleepiness and Associated Sensation Scale Score", y = "Total HADS Depression Score") 
+
+#Add a regression line
+scatter + geom_point() + geom_smooth(method = "lm", colour = "Red", se = F) + labs(x = "Total Sleepiness and Associated Sensation Scale Score", y = "Total HADS Depression Scor") 
+
+
+#Pearson Correlation
+stats::cor.test(sleep$totsas, sleep$depress,  method='pearson')
+```
+
+The relationship between Total Sleepiness and Associated Sensation Scale (derived from the sleepiness questionnaire) and Total HADS Depression Score was investigated using a Pearson correlation.   A medium positive correlation was found (r =.482, n=247, p<.001).  There is evidence to support rejecting the null hypothesis that there is no relationship between Total Sleepiness and Associated Sensation Scale and Total HADS Depression Score.
+
+
+##3.4 Hypothesis 4:
+
+H0:There is no difference in Total Sleepiness and associated sensation scale score for respondents of different gender.
+
+HA:There is a difference in Total Sleepiness and associated sensation scale score for respondents of different gender.
+
+#### Independent t-test
+
+```{r}
+
+gender <- factor(sleep$sex, levels=c(1, 0), labels=c('MALE','FEMALE'))
+psych::describeBy(sleep$totsas,group=gender)
+#Conduct Levene's test for homogeneity of variance in library car
+ltest<-car::leveneTest(totsas ~ gender, data=sleep)
+#Pr(F) is your probability
+ltest
+
+#Conduct the t-test from package stats
+#You can use the var.equal = TRUE option to specify equal variances and a pooled variance estimate
+stats::t.test(totsas~gender,var.equal=TRUE,data=sleep)
+```
+
+A Levene's test for homogeneity of variance was conducted and indicated equality of variance for Total Sleepiness and Associated Sensation Scale Score for male and female respondents (F=0.35, P=0.56). An independent-samples t-test was conducted to compare sleepiness score for male and female respondents. A significant difference in the scores for self-esteem was found (M=27.84, SD= 10.7 for female respondents, M= 23.63, SD= 9.81 for male respondents), (t(249)= -3.20, p = 0.0016). While the eta square statistic indicated a moderate effect size (0.02). 
+
+##3.5 Hypothesis 5:
+
+H0:There is no difference in Total Sleepiness and associated sensation scale score for respondents of different age groups.
+
+HA:There is a difference in Total Sleepiness and associated sensation scale score for respondents of different age groups.
+
+####ANOVA
+```{r}
+bartlett.test(sleep$totsas, sleep$agegp3)
+
+#Can be argued that the variances are homogeneous if the p-value > 0.05
+#Basic Approach
+agegp <- factor(sleep$agegp3, levels=c(1, 2, 3), labels=c('<=37yrs','38-50yrs','51+yrs'))
+# Compute the analysis of variance
+res.aov <- aov(sleep$totsas ~ agegp, data = sleep)
+# Summary of the analysis
+summary(res.aov)
+#Tukey pairwise comparison
+TukeyHSD(res.aov)
+
+
+#Alternative
+#run User friendly science one-way anova test using the correct post-hoc test Tukey in our case
+#Use Games-Howell for unequal variances
+one.way <- userfriendlyscience::oneway(agegp, y = sleep$totsas, posthoc = 'Tukey') 
+ 
+#printout a summary of the anova 
+one.way 
+
+```
+
+A Bartlett's test was conducted and indicated equality of variance for Total Sleepiness and Associated Sensation Scale Score for all age groups (K^2^=1.49, P=0.48). A one-way between-groups analysis of variance was conducted to explore total sleepiness score for respondents of different ages. Participants were divided into three groups according to their age (Group 1: 37 yrs or less; Group 2: 38 to 50 yrs; Group 3: 51yrs and above). There was no statistically significant difference level in total sleepiness scores for respondents of different age groups(F(2, 227)=1.25, p>0.05). Despite not reaching statistical significance, there was a difference in mean scores between groups. The effect size, calculated using eta squared was .01. Post-hoc comparisons using the Tukey HSD test indicated that the mean score for Group 1 (M=27.77, SD=10.3) was different to that of Group 2 (M=26.08, SD=11.18). Group 2 was different to that of Group 3 (M=25.14, SD=9.71). Group 2 did not differ from Group 3. While the statistically significant result indicates there is evidence to support proving the null hypothesis that there is no difference in total sleepiness score for respondents of different age groups, there were difference between Group 1 and Group 2, Group 2 and Group 3, the small effect size indicates that these difference is marginal.
+
+#4.0 Discussion
+
+A medium negative relationship was found between Total Sleepiness and Associated Sensation Scale Score and Rate Quality of Sleep which can be considered to explain  22.71% of their co variance indicating a medium association between the two concepts. Strong positive relationship were found both between Total Sleepiness and Associated Sensation Scale Score and Total HADS Anxiety Score and between Total Sleepiness and Associated Sensation Scale Score and Total HADS Depression Score, they can be considered to explain 25.78% and 23.27% of their co variance indicating a strong association between the level of sleepiness and the level of anxiety and between the level of sleepiness and the level of depression. A statistically significant difference was found for Total Sleepiness and Associated Sensation Scale Score of different gender while the effect size found is moderate (eta=0.02). No statistically significant difference was found for Total Sleepiness and Associated Sensation Scale Score of different age group, while differences were found between the group <= 37 and the group 38-50 and between the group <= 37 and the group >= 51. The effect size is also small (eta= .01).
+
+From this analysis there is evidence to proceed to investigate whether Rate Quality of Sleep, Total HADS Anxiety Score and Total HADS Depression Score and gender can be considered to be a predictor of Total Sleepiness and Associated Sensation Scale Score. The lack of evidence to support considering age group as a predictor while differences were found between several age groups, which was not statistically significant. These also indicates further research should be conducted.
+
+#References
+
+Field, A., Miles, J., & Field, Z. (2012). Discovering statistics using R. Sage publications.
+George, D. (2011). SPSS for windows step by step: A simple study guide and reference, 17.0 update, 10/e. Pearson Education India.
+

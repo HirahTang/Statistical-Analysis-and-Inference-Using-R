@@ -1,0 +1,346 @@
+---
+title: "PSI CA PART I EXAMPLE"
+Student Number: <<your student number>>
+Student Name: <<your name>>
+Programme Code: <<programme code>>
+R Version: 3.5.1
+R Packages: dplyr, pastecs, ggplot2, pysch, semTools, car, pander 
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, include=TRUE, warning=FALSE)
+```
+
+## 1. INTRODUCTION
+
+This markdown file uses the survey dataset we have used in lectures survey.dat. This example should not be considered an exemplar of a 1st class honours result, it covers the basic requirements, illustrates the type of code and content expected to assist you in getting started with your CA only. As postgraduate student you need to explore how best to put together and present a cohesive assignment based on the guidelines provided.
+Everything included is for illustration only. It has been done at speed and therefore errors in reporting may exist. 
+
+**PhD Students:** You need to include some details of your dataset here and you need to provide some mechanism through which I can get the data so either include details here or as part of the header.
+
+#1.1 Research Question
+
+A person's self esteem can be impacted by a range of social, pyschological and physical factors. This analysis is concerned with a person's sense of being in control and whether a person's gender and age group may also influence a person's self esteem as measured using a self esteem questionnaire.
+Can a person's perceived sense of control, as measured using the Perceived Control of Internal
+States Scale (PCOISS) scale,  be considered to influence a person's self-esteem, as measured using a self esteem questionnaire,  and do differences exist in a person's self esteem based on their gender and age group?
+
+**Note:** You will need a more extended research question. PG Cert and MSc students DO NOT need to include background research citing papers (PhD students do) but you can include some short overview of where/how the research question comes from.
+
+##1.1 Hypotheses
+
+The particular hypotheses to be investigated are:
+
+####Hypothesis 1:
+
+H0:  There is no correlation between a respondent's Total Perceived Control of Internal States  and their level Total self esteem.
+
+HA:  There is a correlation between a respondent's Total Perceived Control of Internal States  and their level Total self esteem.
+
+
+####Hypothesis 2:
+
+H0:There is no difference in Total Perceived Control of Internal States scores for respondents of different gender.
+
+HA:There is a difference in Total Perceived Control of Internal States scores for respondents of different gender.
+
+
+####Hypothesis 3:
+
+H0:There is no difference in Total Perceived Control of Internal States scores for respondents of different age groups.
+
+HA:There is a difference in Total Perceived Control of Internal States scores for respondents of different age groups.
+
+##1.3 Notes
+
+**Note 1:** For your assignment you need to include TWO more hypotheses.
+
+**Note 2:** In this example I am going to demonstrate some basic description to support some elements of the hypotheses I've included, this is not complete - you need to refer to the material provided during lectures to work out descriptives which you think sufficient for the CA.
+
+
+**PhD Students: Include some relevant background research to justify your question. Approx. 500 words.**
+
+
+```{r set_up}
+library(dplyr)
+library(ggplot2) #For creating histograms with more detail than plot
+library(psych) # Some useful descriptive functions
+library(pastecs)#Some useful descriptive functions
+library(semTools) #For skewness and kurtosis
+library(car) # For Levene's test for homogeneity of variance 
+library(pander) # For creating a table
+
+#Read in the dataset
+survey <- read.table("survey.dat")
+names(survey)
+
+#Setting the column names to be that used in the dataset
+colnames(survey) <- tolower(colnames(survey))
+```
+
+
+#2. METHODOLOGY
+
+##2.1 Variables of interest
+The variables of interest used in this research are shown below:
+
+```{r  vars_interest table-simple,  results='asis'}
+panderOptions('table.split.table', Inf)
+
+my.data <- " 
+  Concept                       | Variable Name     | Statistical Type        | Possible Values
+  Self Esteem                   | tlfsest           | Scale                   | Range from 10 to 40
+  Perceived Sense of Control    | tpcoiss           | Scale                   | Range from 18 to 90
+  
+  Gender                        | sex               | Nominal                 | 1= male; 2=female
+  Age Group                     | agegp3            | Nominal                 | 1=18-29yrs, 2=30-44yrs, 3=45+yrs "
+df <- read.delim(textConnection(my.data),header=FALSE,sep="|",strip.white=TRUE,stringsAsFactors=FALSE)
+
+names(df) <- unname(as.list(df[1,])) # put headers on
+df <- df[-1,] # remove first row
+row.names(df)<-NULL
+pander(df, style = 'rmarkdown')
+df
+survey$tslfest
+survey$tpcoiss
+```
+**Note: You will have more variables than this **
+
+Each of the variables of interest were inspected. The scale variables of interest, those representing total perceived control of internal states and total self-esteem, were inspected for normality by creating histograms and QQ plots, inspecting standardised scores for skewness and kurtosis as well as considering the percentage of standardised scores for the variables fell outside of expected boundaries. Decisions on skewness and kurtosis were guided by the advice of George and Mallory(2011) which categorizes a distribution as normal if the relevant standardised scores for skewness and kurtosis fall in the range +/- 2 and the advice of Field, Miles and Field (2012) which categorizes a distribution as normal if 95% of the standardised scores for the variable fall within the bounds of +/-3.29 for a dataset larger than 80 cases.
+
+
+
+##2.2 TOTAL SELF-ESTEEM
+
+###Code for inspecting the variable
+```{r desc_selfesteem}
+#Descriptive statisics
+pastecs::stat.desc(survey$tslfest, basic=F)
+
+
+#skewness and kurtosis from semTools with standard error 
+tpskew<-semTools::skew(survey$tslfest)
+tpkurt<-semTools::kurtosis(survey$tslfest)
+#We divide the skew statistic by the standard error to get the standardised score
+stdskew<-tpskew[1]/tpskew[2]
+stdkurt<-tpkurt[1]/tpkurt[2]
+stdskew
+stdkurt
+#Use dplyr filter to filter out the rows with a standardised value outsude the range
+outliers <- survey %>% 
+  filter(scale(tslfest) >3.29 | scale(tslfest) < -3.29)
+
+#count them using dplyr summarize
+numoutliers<-outliers %>%
+summarize(count=n())
+fullcount<-survey %>%
+summarize(count=n())
+
+numoutliers
+fullcount
+```
+
+###Report of normality analysis
+
+
+Total self esteem is represented by a scale variable in the dataset which was calculated from the self esteem  questionnaire. Inspection of the histogram and normality plot (see figure 1 and figure 2) shows that the distribution does not conform exactly to a normal distribution.
+Inspection of standardized normal scores for skewness and kurtosis indicated that while both fall with an acceptable range of +/-2, (skewness of `r tpskew[1]` SE=`r tpskew[2]`, kurtosis of `r tpkurt[1]` SE=`r tpkurt[2]`. Further inspection of the variable using standardized scores showed that `r round((numoutliers/fullcount)*100, digits=2)`% standardised scores were outside the acceptable range of +/3.29. Total self esteem will therefore be treated as a normal within this analysis (m=`r mean(survey$tslfest, na.rm=TRUE)`, sd=`r sd(survey$tslfest, na.rm=TRUE)`, n=`r tally(survey, tslfest)-sum(is.na(survey$tslfest))`).
+
+
+
+```{r plots_selfesteem}
+#Create the histogram
+#Adjusting theme so that all plot titles after this will be centred and in bold
+theme_update(plot.title = element_text(hjust = 0.5, face="bold"))
+gg <- ggplot(survey, aes(x=survey$tslfest))
+
+#Change the label of the x axis
+gg <- gg + labs(x="Total Self Esteem")
+#manage binwidth and colours
+gg <- gg + geom_histogram(binwidth=2, colour="black", aes(y=..density.., fill=..count..))
+gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+#adding a normal curve
+#use stat_function to compute a normalised score for each value of tpcois
+#pass the mean and standard deviation
+#use the na.rm parameter to say how missing values are handled
+gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(survey$tslfest, na.rm=TRUE), sd=sd(survey$tslfest, na.rm=TRUE)))
+
+gg<-gg+ggtitle('Figure 1: Distribution Total Perceieved Feeling of Control')
+#to display the graph request the contents of the variable be shown
+gg
+
+#Create a qqplot
+qqnorm(survey$tslfest, main="Figure 2: QQPlot or Total Self Esteem")
+qqline(survey$tslfest, col=2) #show a line on theplot
+```
+
+## 2.3 TOTAL PERCEIVED CONTROL OF INTERNAL STATES
+
+###Code for inspecting the variable
+```{r desc_control}
+#Descriptive statisics
+pastecs::stat.desc(survey$tpcoiss, basic=F)
+
+#skewness and kurtosis from semTools with standard error 
+tpskew<-semTools::skew(survey$tpcoiss)
+tpkurt<-semTools::kurtosis(survey$tpcoiss)
+#We divide the skew statistic by the standard error to get the standardised score
+stdskew<-tpskew[1]/tpskew[2]
+stdkurt<-tpkurt[1]/tpkurt[2]
+stdskew
+#Use dplyr filter to filter out the rows with a standardised value outsude the range
+outliers <- survey %>%
+  filter(scale(tpcoiss) >3.29 | scale(tpcoiss) < -3.29)
+
+#count them using dplyr summarize
+numoutliers<-outliers %>%
+summarize(count=n())
+fullcount<-survey %>%
+summarize(count=n())
+```
+
+###Report of normality analysis
+Total perceived control of internal states is represented by a scale variable in the dataset which was calculated from the Total Perceived Control questionnaire. Inspection of the histogram and normality plot (see figure 3 and figure 4) shows that the distribution does not conform exactly to a normal distribution. Inspection of standardized normal scores for skewness and kurtosis indicated that while skewness was not an issue  falling with an acceptable range of +/-2, (skewness of `r tpskew[1]` SE=`r tpskew[2]`), kurtosis was outside acceptable bounds, (kurtosis of `r tpkurt[1]` SE=`r tpkurt[2]` . Further inspection of the variable using standardized scores showed that only `r numoutliers` or `r round((numoutliers/fullcount)*100, digits=2)`% standardised scores were outside the acceptable range of +/3.29. Total perceived control of internal states will therefore be treated as a normal within this analysis (m=`r mean(survey$tpcoiss, na.rm=TRUE)`, sd=`r sd(survey$tpcoiss, na.rm=TRUE)`, n=`r tally(survey, tpcoiss)-sum(is.na(survey$tpcoiss))`).
+
+```{r plots_control}
+#Create the histogram
+
+gg <- ggplot(survey, aes(x=survey$tpcoiss))
+
+#Change the label of the x axis
+gg <- gg + labs(x="Total Perceived Feeling of Control")
+#manage binwidth and colours
+gg <- gg + geom_histogram(binwidth=2, colour="black", aes(y=..density.., fill=..count..))
+gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+#adding a normal curve
+#use stat_function to compute a normalised score for each value of tpcois
+#pass the mean and standard deviation
+#use the na.rm parameter to say how missing values are handled
+gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(survey$tpcoiss, na.rm=TRUE), sd=sd(survey$tpcoiss, na.rm=TRUE)))
+
+gg<-gg+ggtitle('Figure 3: Distribution Total Perceieved Feeling of Control')
+#to display the graph request the contents of the variable be shown
+gg
+
+
+#Create a qqplot
+qqnorm(survey$tpcoiss, main="Figure 4: QQPlot or Total Perceived Feeling of Control")
+qqline(survey$tpcoiss, col=2) #show a line on theplot
+
+```
+
+##2.4 GENDER
+
+Gender is represented by a categorical variable in the dataset. The dataset contains data from 254 female respondents and 185 male respondents.
+<You should comment on the representativeness of gender - are the numbers reflective of the population. If Melbourne, Australia and surrounding districts. In Australian census 2016 population was 51% female, 49% male. Need to look for statistics of male:female in working/studying education as the respondents are from an educational psychology course.>
+
+
+**Note:** You need to present summary statistics per group for the scale variables you are using in your hypotheses involving difference. So for the tpcoiss and tslfest as we are treating them as normal we would expect a table or comment on the numbers in each category plus a bar chart of the means to illustrate. I've included the code for the table and bar chart for one of the variables.
+
+```{r somdesc_gender}
+table(survey$sex)
+
+#Get descriptive stastitics by group
+psych::describeBy(survey$tslfest, survey$sex)
+```
+
+```{r bar_gender}
+bar <- ggplot(survey, aes(sex, tslfest))
+bar + stat_summary(fun.y = mean, geom = "bar", fill = "White", colour = "Black") + stat_summary(fun.data = mean_cl_normal, geom = "pointrange") + labs(x = "Gender", y = "Mean Total Self Esteem Score", title="Figure 5: Mean Total Self Esteem by Gender") 
+```
+
+
+##2.5 AGE GROUP
+
+Deal with the age group in the same way as gender.
+
+
+#3. RESULTS
+
+An alpha level 0.05 was adopted and Cohen's conventions on effect size were adopted for all statistical tests.
+
+##3.1 Hypothesis 1
+
+H0:  There is no correlation between a respondent's Total Perceived Control of Internal States  and their level Total self esteem.
+HA:  There is a correlation between a respondent's Total Perceived Control of Internal States  and their level Total self esteem.
+
+```{r corr_esteemcontrol}
+#Pearson Correlation
+stats::cor.test(survey$tslfest, survey$tpcoiss,  method='pearson')
+sum(is.na(survey$tslfest))
+sum(is.na(survey$tpcoiss))
+
+```
+
+The relationship between Total Self Esteem (derived from the self-esteem questionnaire) and Total Perceived Control of Internal states (derived from the PCOISS questionnaire)  was investigated using a Pearson correlation.   A strong positive correlation was found (r =.548, n=424, p<.001).  There is evidence to support rejecting the null hypothesis that there is no relationship between  Total Self Esteem and Total Perceived Control of Internal States.
+
+##3.2 Hypothesis 2
+
+H0:There is no difference in Total Perceived Control of Internal States scores for respondents of different gender.
+HA:There is a difference in Total Perceived Control of Internal States scores for respondents of different gender.
+
+#### Independent t-test
+```{r ttest_esteemgender}
+survey$tslfest
+#Conduct Levene's test for homogeneity of variance in library car
+psych::describeBy(survey$tslfest,group=survey$sex)
+ltest<-car::leveneTest(tslfest ~ sex, data=survey)
+#Pr(F) is your probability
+ltest
+
+#Conduct the t-test from package stats
+#You can use the var.equal = TRUE option to specify equal variances and a pooled variance estimate
+stats::t.test(tslfest~sex,var.equal=TRUE,data=survey)
+```
+
+A Levene's test for homogeneity of variance was conducted and indicated equality of variance for Total Self Esteem scores for male and female respondents (F=2.53, P=0.11). An independent-samples t-test was conducted to compare self-esteem scores for male and female respondents. No significant difference in the scores for self-esteem was found (M=33.17, SD= 5.71 for female respondents, M= 34.02, SD= 4.91 for male respondents), (t(434)= -1.62, p = 0.10). The eta square statistic also indicated a very small effect size (0.006). While the result is statistical significance which indicates there is evidence to reject the null hypothesis that there is no difference in self esteem scores for respondents of different gender,  the very small effect size is a concern and therefore the result should be treated with caution.
+
+**Note:** I haven't include r code in the text here to calculate the mean, sd and effect but you should.
+
+##3.3 Hypothesis 3
+
+H0:There is no difference in Total Perceived Control of Internal States scores for respondents of different age groups.
+HA:There is a difference in Total Perceived Control of Internal States scores for respondents of different age groups.
+
+
+
+###ANOVA
+```{r anova_esteemage}
+bartlett.test(survey$tslfest, survey$agegp3)
+#Can be argued that the variances are homogeneous if the p-value > 0.05
+#Basic Approach
+# Compute the analysis of variance
+
+res.aov <- aov(tslfest ~ agegp3, data = survey)
+# Summary of the analysis
+summary(res.aov)
+#Tukey pairwise comparison
+TukeyHSD(res.aov)
+
+#Alternative
+#run User friendly science one-way anova test using the correct post-hoc test Tukey in our case
+#Use Games-Howell for unequal variances
+one.way <- userfriendlyscience::oneway(survey$agegp3, y = survey$tslfest, posthoc = 'Tukey') 
+ 
+#printout a summary of the anova 
+one.way 
+
+```
+
+A Bartlett's test was conducted and indicated equality of variance for Total Self Esteem scores for all age groups (K^2^=0.99, P=0.61). A one-way between-groups analysis of variance was conducted to explore total self esteem for respondents of different ages. Participants were divided into three groups according to their age (Group 1: 29 yrs or less; Group 2: 30 to 44 yrs; Group 3: 45yrs and above). There was a statistically significant difference  level in total self esteem scores for respondents of different age groups(F(2, 433)=4.51, p<0.05). Despite reaching statistical significance, the actual difference in mean scores between groups was quite small. The effect size, calculated using eta squared was .02. Post-hoc comparisons using the Tukey HSD test indicated that the mean score for Group 1 (M=32.60, SD=5.59) was statistically different to that of Group 3 (M=34.50, SD=5.15). Group 2 (M=33.59, SD=5.29) did not differ significantly from either Group 1 or 3. While the statistically significant result indicates there is evidence to support rejecting the null hypothesis that there is no difference in self esteem scores for respondents of different age groups, the difference exists only between two of the groups and the small effect size indicates that any difference is marginal.
+
+
+#4.0 DISCUSSION
+
+A strong positive relationship was found between Total Self Esteem and Total Perceived Control of Internal States which can be considered to explain 30.03% of their co variance indicating a strong association between the two concepts. No statistically significant difference was found for Total Self Esteem scores for respondents of different gender and the effect size found is very small (eta=0.006). However, when considering Total Self Esteem scores for respondents of different age groups, while a statistically significant difference was found it was only found  between respondents in the group 18-29 and those in the group 45 and over and the effect size is also small (eta=.02). 
+
+From this analysis there is evidence to proceed to investigate whether Total Perceived Control of Internal States can be considered to be a predictor of Total Self Esteem. However the small effect sizes found for differences based on age group indicate that while evidence has been found to support that differences exist,  this should be treated with caution and there needs to be further investigation of these concepts with regard to Total Self Esteem. The lack of evidence to support considering gender as a predictor also indicates the need for further research.
+
+**PhD Students: Compare with relevant statistical research if you have it (compare effects, coefficients, differences etc.) or if no relevant statistical research exists compare with relevant qualitative research. Consider how you could extend your work in the future.**
+
+#References
+
+Field, A., Miles, J., & Field, Z. (2012). Discovering statistics using R. Sage publications.
+George, D. (2011). SPSS for windows step by step: A simple study guide and reference, 17.0 update, 10/e. Pearson Education India.

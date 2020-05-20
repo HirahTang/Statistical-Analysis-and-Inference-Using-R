@@ -1,0 +1,92 @@
+---
+title: "CA_try"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+setwd('/Users/TH/Desktop/DIT study/master/Semester1/Probablity & Statistical Inference/Assignment/Part I')
+
+
+library(pastecs)
+library(semTools)
+library(pander) # For creating a table
+
+
+# alcohol <- na.omit(df$alchohol)
+# df$alchohol
+# length(alcohol)
+# sum(alcohol)
+# sum(df$alchohol, na.rm = TRUE)
+# sum(df$alchohol == 1, na.rm = TRUE)
+# sum(df$alchohol == 2, na.rm = TRUE)
+# df$alchohol
+# tail(df)
+# length(df$alchohol == 1)
+# length(df)
+# sum(is.na(df$alchohol))
+# 
+
+
+sleep <- read.csv('sleep5ED.csv')
+
+panderOptions('table.split.table', Inf)
+sleep
+nrow(sleep)
+length(sleep)
+dim(sleep)
+summary(sleep)
+sleep$marital
+sleep$alchohol
+typeof(sleep$ess)
+names(sleep)
+sleep$hourneed
+sleep$hourwend
+sleep$hourwnit
+sleep$totsas
+#skewness and kurtosis from semTools with standard error 
+tpskew<-semTools::skew(df$alchohol)
+tpkurt<-semTools::kurtosis(df$alchohol)
+# tpkurt
+# tpskew
+# #We divide the skew statistic by the standard error to get the standardised score
+tpskew[1]/tpskew[2]
+tpkurt[1]/tpkurt[2]
+# gg <- ggplot(df, aes(x=df$alchohol))
+# 
+# #Change the label of the x axis
+# gg <- gg + labs(x="Alcohol Consumed")
+# #manage binwidth and colours
+# gg <- gg + geom_histogram(binwidth=2, colour="black", aes(y=..density.., fill=..count..))
+# gg <- gg + scale_fill_gradient("Count", low="#DCDCDC", high="#7C7C7C")
+# #adding a normal curve
+# #use stat_function to compute a normalised score for each value of tpcois
+# #pass the mean and standard deviation
+# #use the na.rm parameter to say how missing values are handled
+# gg <- gg + stat_function(fun=dnorm, color="red",args=list(mean=mean(df$alchohol, na.rm=TRUE), sd=sd(df$alchohol, na.rm=TRUE)))
+# #to display the graph request the contents of the variable be shown
+# gg
+
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

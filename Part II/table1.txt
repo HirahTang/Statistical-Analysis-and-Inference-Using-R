@@ -1,0 +1,3 @@
+"value"	"anxiety"	"depress"	"healthrate"
+"skew (g1)"	"skew"	0.54	0.93	-0.87
+"Excess Kur (g2)"	"kurtosis"	-0.02	0.03	0.57
